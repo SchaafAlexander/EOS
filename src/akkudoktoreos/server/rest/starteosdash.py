@@ -2,7 +2,9 @@ import asyncio
 import os
 import re
 import sys
+import time
 from pathlib import Path
+from typing import Any, MutableMapping
 
 from loguru import logger
 
@@ -14,10 +16,12 @@ from akkudoktoreos.server.server import (
 
 config_eos = get_config()
 
-
 # Loguru to HA stdout
 logger.add(sys.stdout, format="{time} | {level} | {message}", enqueue=True)
 
+
+# Maximum bytes per line to log
+EOSDASH_LOG_MAX_LINE_BYTES = 128 * 1024  # 128 kB safety cap
 
 LOG_PATTERN = re.compile(
     r"""
@@ -34,6 +38,97 @@ LOG_PATTERN = re.compile(
     """,
     re.VERBOSE,
 )
+
+# Drop-on-overload settings
+EOSDASH_LOG_QUEUE_SIZE = 50
+EOSDASH_DROP_WARNING_INTERVAL = 5.0  # seconds
+
+# The queue to handle dropping of EOSdash logs on overload
+eosdash_log_queue: asyncio.Queue | None = None
+eosdash_last_drop_warning: float = 0.0
+
+
+async def _eosdash_log_worker() -> None:
+    """Consumes queued log calls and emits them via Loguru."""
+    if eosdash_log_queue is None:
+        error_msg = "EOSdash log queue not initialized"
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
+
+    while True:
+        item = await eosdash_log_queue.get()
+        if item is None:
+            break  # shutdown signal
+
+        log_fn, args = item
+        try:
+            log_fn(*args)
+        except Exception:
+            logger.exception("Error while emitting EOSdash log")
+
+
+def _emit_drop_warning() -> None:
+    global eosdash_last_drop_warning
+
+    now = time.monotonic()
+    if now - eosdash_last_drop_warning >= EOSDASH_DROP_WARNING_INTERVAL:
+        eosdash_last_drop_warning = now
+        logger.warning("EOSdash log queue full — dropping subprocess log lines")
+
+
+# Loguru log message patching
+
+
+def patch_loguru_record(
+    record: MutableMapping[str, Any],
+    *,
+    file_name: str,
+    file_path: str,
+    line_no: int,
+    function: str,
+    logger_name: str = "EOSdash",
+) -> None:
+    """Patch a Loguru log record with subprocess-origin metadata.
+
+    This helper mutates an existing Loguru record in-place to update selected
+    metadata fields (file, line, function, and logger name) while preserving
+    Loguru's internal record structure. It must be used with ``logger.patch()``
+    and **must not** replace structured fields (such as ``record["file"]``)
+    with plain dictionaries.
+
+    The function is intended for forwarding log messages originating from
+    subprocess stdout/stderr streams into Loguru while retaining meaningful
+    source information (e.g., file path and line number).
+
+    Args:
+        record:
+            The Loguru record dictionary provided to ``logger.patch()``.
+        file_name:
+            The source file name to assign (e.g. ``"main.py"``).
+        file_path:
+            The full source file path to assign
+            (e.g. ``"/app/server/main.py"``).
+        line_no:
+            The source line number associated with the log entry.
+        function:
+            The function name associated with the log entry.
+        logger_name:
+            The logical logger name to assign to the record. Defaults to
+            ``"EOSdash"``.
+
+    Notes:
+        - This function mutates the record in-place and returns ``None``.
+        - Only attributes of existing structured objects are modified;
+          no structured Loguru fields are replaced.
+        - Replacing ``record["file"]`` or similar structured fields with a
+          dictionary will cause Loguru sinks to fail.
+
+    """
+    record["file"].name = file_name
+    record["file"].path = file_path
+    record["line"] = line_no
+    record["function"] = function
+    record["name"] = logger_name
 
 
 async def forward_stream(stream: asyncio.StreamReader, prefix: str = "") -> None:
@@ -63,12 +158,50 @@ async def forward_stream(stream: asyncio.StreamReader, prefix: str = "") -> None
         - The function runs until ``stream`` reaches EOF.
 
     """
-    while True:
-        line = await stream.readline()
-        if not line:
-            break  # End of stream
+    buffer = bytearray()
 
-        raw = line.decode(errors="replace").rstrip()
+    while True:
+        try:
+            chunk = await stream.readuntil(b"\n")
+            buffer.extend(chunk)
+            complete = True
+
+        except asyncio.LimitOverrunError as e:
+            # Read buffered data without delimiter
+            chunk = await stream.readexactly(e.consumed)
+            buffer.extend(chunk)
+            complete = False
+
+        except asyncio.IncompleteReadError as e:
+            buffer.extend(e.partial)
+            complete = False
+
+        if not buffer:
+            break  # true EOF
+
+        # Enforce memory bound
+        truncated = False
+        if len(buffer) > EOSDASH_LOG_MAX_LINE_BYTES:
+            buffer = buffer[:EOSDASH_LOG_MAX_LINE_BYTES]
+            truncated = True
+
+            # Drain until newline or EOF
+            try:
+                while True:
+                    await stream.readuntil(b"\n")
+            except (asyncio.LimitOverrunError, asyncio.IncompleteReadError):
+                pass
+
+        # If we don't yet have a full line, continue accumulating
+        if not complete and not truncated:
+            continue
+
+        raw = buffer.decode(errors="replace").rstrip()
+        if truncated:
+            raw += " [TRUNCATED]"
+
+        buffer.clear()
+
         match = LOG_PATTERN.search(raw)
 
         if match:
@@ -94,39 +227,54 @@ async def forward_stream(stream: asyncio.StreamReader, prefix: str = "") -> None
 
             # ---- Patch logger with realistic metadata ----
             patched = logger.patch(
-                lambda r: r.update(
-                    {
-                        "file": {
-                            "name": file_name,
-                            "path": file_path,
-                        },
-                        "line": line_no,
-                        "function": func_name,
-                        "name": "EOSdash",
-                    }
+                lambda r: patch_loguru_record(
+                    r,
+                    file_name=file_name,
+                    file_path=file_path,
+                    line_no=line_no,
+                    function=func_name,
                 )
             )
-
-            patched.log(level, f"{prefix}{message}")
+            if eosdash_log_queue is None:
+                patched.log(level, f"{prefix}{message}")
+            else:
+                try:
+                    eosdash_log_queue.put_nowait(
+                        (
+                            patched.log,
+                            (level, f"{prefix}{message}"),
+                        )
+                    )
+                except asyncio.QueueFull:
+                    _emit_drop_warning()
 
         else:
             # Fallback: unstructured log line
             file_name = "subprocess.py"
             file_path = f"/subprocess/{file_name}"
 
-            logger.patch(
-                lambda r: r.update(
-                    {
-                        "file": {
-                            "name": file_name,
-                            "path": file_path,
-                        },
-                        "line": 1,
-                        "function": "<subprocess>",
-                        "name": "EOSdash",
-                    }
+            patched = logger.patch(
+                lambda r: patch_loguru_record(
+                    r,
+                    file_name=file_name,
+                    file_path=file_path,
+                    line_no=1,
+                    function="<subprocess>",
+                    logger_name="EOSdash",
                 )
-            ).info(f"{prefix}{raw}")
+            )
+            if eosdash_log_queue is None:
+                patched.info(f"{prefix}{raw}")
+            else:
+                try:
+                    eosdash_log_queue.put_nowait(
+                        (
+                            patched.info,
+                            (f"{prefix}{raw}",),
+                        )
+                    )
+                except asyncio.QueueFull:
+                    _emit_drop_warning()
 
 
 async def run_eosdash_supervisor() -> None:
@@ -134,6 +282,8 @@ async def run_eosdash_supervisor() -> None:
 
     Runs forever.
     """
+    global eosdash_log_queue
+
     eosdash_path = Path(__file__).parent.resolve().joinpath("eosdash.py")
 
     while True:
@@ -238,6 +388,11 @@ async def run_eosdash_supervisor() -> None:
             logger.exception(f"Unexpected error launching EOSdash: {e}")
             continue
 
+        if eosdash_log_queue is None:
+            # Initialize EOSdash log queue + worker once
+            eosdash_log_queue = asyncio.Queue(maxsize=EOSDASH_LOG_QUEUE_SIZE)
+            asyncio.create_task(_eosdash_log_worker())
+
         if proc.stdout is None:
             logger.error("Failed to forward EOSdash output to EOS pipe.")
         else:
@@ -248,7 +403,7 @@ async def run_eosdash_supervisor() -> None:
             logger.error("Failed to forward EOSdash error output to EOS pipe.")
         else:
             # Forward log
-            asyncio.create_task(forward_stream(proc.stderr, prefix="[EOSdash-ERR] "))
+            asyncio.create_task(forward_stream(proc.stderr, prefix="[EOSdash] "))
 
         # If we reach here, the subprocess started successfully
         logger.info("EOSdash subprocess started successfully.")
