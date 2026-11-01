@@ -10,6 +10,7 @@ from weather-forecast error.
 import copy
 import json
 from pathlib import Path
+from typing import Any
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -42,7 +43,7 @@ PLANES = [
     {"surface_tilt": 21.0, "surface_azimuth": 208.0, "peakpower": 1.0, "inverter_paco": 1600},
 ]
 
-BASE_SETTINGS = {"backend": "local", "resolution_minutes": 60, "snow_enabled": True}
+BASE_SETTINGS: dict[str, Any] = {"backend": "local", "resolution_minutes": 60, "snow_enabled": True}
 
 
 def load_fixture() -> dict:
@@ -51,7 +52,9 @@ def load_fixture() -> dict:
 
 
 def local(text: str) -> pendulum.DateTime:
-    return pendulum.parse(text, tz=TIMEZONE)
+    parsed = pendulum.parse(text, tz=TIMEZONE)
+    assert isinstance(parsed, pendulum.DateTime)
+    return parsed
 
 
 def window_kwh(frame: pd.DataFrame, start: str, end: str) -> float:
