@@ -76,6 +76,10 @@
                    "min_soc_max_duration_h": null,
                    "full_charge_soc_percentage": 100,
                    "full_charge_allow_grid": false,
+                   "full_charge_completion": "soc",
+                   "full_charge_completed_measurement_key": null,
+                   "full_charge_hold_hours": null,
+                   "full_charge_max_hold_hours": 12.0,
                    "reserve_soc_percentage": null,
                    "reserve_soc_time_windows": null
                }
@@ -121,6 +125,10 @@
                    "min_soc_max_duration_h": null,
                    "full_charge_soc_percentage": 100,
                    "full_charge_allow_grid": false,
+                   "full_charge_completion": "soc",
+                   "full_charge_completed_measurement_key": null,
+                   "full_charge_hold_hours": null,
+                   "full_charge_max_hold_hours": 12.0,
                    "reserve_soc_percentage": null,
                    "reserve_soc_time_windows": null
                }

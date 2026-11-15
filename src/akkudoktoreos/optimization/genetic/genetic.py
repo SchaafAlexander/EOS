@@ -1663,9 +1663,9 @@ class GeneticOptimization(OptimizationBase):
                 inverter=inverter,
                 prices_euro_per_wh=prices[tail],
                 load_wh=loads[tail]
-                    + self._estimated_daily_appliance_load(
-                        self.control_end_slot, end_slot, skip_planned_days=True
-                    ),
+                + self._estimated_daily_appliance_load(
+                    self.control_end_slot, end_slot, skip_planned_days=True
+                ),
                 pv_wh=pv[tail],
                 feed_in_euro_per_wh=tariffs[tail],
                 continuation=curve,
