@@ -5,11 +5,11 @@
 # The Akkudoktor-EOS add-on repo is special because there is only one add-on and it is in
 # the root directory (no add-on folder as usual).
 
-name: "Akkudoktor-EOS"
-version: "0.3.0.dev2611122196862169"
+name: "Akkudoktor-EOS TEST"
+version: "0.3.0.dev2611150100"
 slug: "eos"
-description: "Akkudoktor-EOS add-on"
-url: "https://github.com/Akkudoktor-EOS/EOS"
+description: "Akkudoktor-EOS test build: main 7e10f64 + PRs #1540 #1544 #1545 #1549 #1552 #1554"
+url: "https://github.com/SchaafAlexander/EOS/tree/test-ha/combined"
 
 arch:
   - aarch64
