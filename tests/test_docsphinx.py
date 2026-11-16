@@ -91,6 +91,7 @@ def sphinx_changed(version_and_hash) -> Optional[str]:
     return new_hash
 
 
+@pytest.mark.docs
 class TestSphinxDocumentation:
     """Test class to verify Sphinx documentation generation.
 

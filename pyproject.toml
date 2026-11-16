@@ -165,6 +165,7 @@ pythonpath = [ "src", ]
 testpaths = [ "tests", ]
 markers = [
     "docker: marks tests that require a local Docker engine",
+    "docs: marks the Sphinx documentation build test",
     "browser: marks EOSdash tests that run in a headless browser (enable with --browser-test)",
 ]
 filterwarnings = [
