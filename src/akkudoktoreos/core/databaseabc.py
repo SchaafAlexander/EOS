@@ -318,30 +318,7 @@ class DatabaseTimestamp(str):
         )
 
     def to_datetime(self) -> DateTime:
-        # Fast path for the canonical "YYYYMMDDTHHmmssZ" form. The generic
-        # to_datetime() tries a list of formats first and costs ~300 times more,
-        # which dominated record lookups (e.g. key_from_series).
-        s = str(self)
-        if (
-            len(s) == 16
-            and s.isascii()
-            and s[8] == "T"
-            and s[15] == "Z"
-            and s[:8].isdigit()
-            and s[9:15].isdigit()
-        ):
-            try:
-                return DateTime(
-                    int(s[0:4]),
-                    int(s[4:6]),
-                    int(s[6:8]),
-                    int(s[9:11]),
-                    int(s[11:13]),
-                    int(s[13:15]),
-                    tzinfo=UTC,
-                )
-            except ValueError:
-                pass  # Out-of-range field; let the generic parser decide.
+        # to_datetime() parses the canonical form directly (ISO 8601 instant fast path).
         return to_datetime(self, in_timezone="UTC")
 
 

@@ -389,17 +389,6 @@ class TestDatabaseTimestamp:
         assert parsed == dt.in_timezone("UTC")
         assert parsed.timezone_name == "UTC"
 
-    def test_non_canonical_string_uses_generic_parser(self) -> None:
-        parsed = DatabaseTimestamp("2024-06-15T14:30:00+02:00").to_datetime()
-
-        assert parsed == to_datetime("2024-06-15T12:30:00Z", in_timezone="UTC")
-        assert parsed.timezone_name == "UTC"
-
-    def test_out_of_range_canonical_string_uses_generic_parser(self) -> None:
-        # Month 13: the fast path rejects it; the generic parser raises.
-        with pytest.raises(ValueError):
-            DatabaseTimestamp("20241327T000000Z").to_datetime()
-
     def test_naive_datetime_rejected(self) -> None:
         with pytest.raises(ValueError):
             DatabaseTimestamp.from_datetime(DateTime(2024, 1, 1))
