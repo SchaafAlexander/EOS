@@ -124,6 +124,11 @@ and persistence in `tests/test_measurement.py`, and GENETIC0 parameter preparati
 When moving tests, verify that parametrized cases and fixture behavior are preserved with
 `pytest --collect-only` and an execution of the affected suites.
 
+Keep each test case well under a second. Do not wait in real time (no `sleep` or wait loops; use
+synthetic timestamps), do not `parametrize` the full cartesian product of independent axes, and
+extend an existing parametrized test before writing a new one. The CI log lists the 25 slowest
+tests (`--durations=25`).
+
 ### Commit message style
 
 Our commit message checks use
