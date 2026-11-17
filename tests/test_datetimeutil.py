@@ -992,8 +992,13 @@ def test_to_datetime_iso_instant_matches_generic_parser(value: str, in_timezone:
 
 @pytest.mark.parametrize(
     "value",
-    ["2024-13-01T00:00:00Z", "2024-02-30T12:00:00+01:00", "20241327T000000Z"],
-    ids=["month-13", "february-30", "basic-month-13"],
+    [
+        "2024-13-01T00:00:00Z",
+        "2024-02-30T12:00:00+01:00",
+        "20241327T000000Z",
+        "2024-01-01T00:00:00+24:00",
+    ],
+    ids=["month-13", "february-30", "basic-month-13", "offset-24h"],
 )
 def test_to_datetime_iso_instant_out_of_range_raises(value: str) -> None:
     """An ISO 8601 instant with an out-of-range field is still rejected."""
