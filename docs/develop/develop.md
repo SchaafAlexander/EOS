@@ -600,6 +600,19 @@ Ensure your changes do not break existing functionality:
         make test
 ```
 
+### Keep Tests Fast
+
+Keep each test case well under a second:
+
+- Do not wait in real time (no `sleep` or wait loops); use synthetic timestamps instead.
+- Do not `parametrize` the full cartesian product of independent axes.
+- Extend an existing parametrized test before writing a new one.
+
+The CI log of the `test` job lists the 25 slowest tests (`--durations=25`). The Sphinx
+documentation build and the Docker checks run in their own CI jobs. Run them locally with
+`uv run pytest --finalize -m docs` and `uv run pytest --finalize -m docker` (the Docker checks
+need a running Docker engine).
+
 ### Follow Coding Standards
 
 Keep your code consistent with existing style and conventions.
