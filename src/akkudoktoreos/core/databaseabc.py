@@ -299,7 +299,7 @@ class DatabaseTimestamp(str):
     Must always be in UTC and lexicographically sortable.
 
     Example:
-        "20241027T123456[Z]" # 2024-10-27 12:34:56
+        "20241027T123456Z" # 2024-10-27 12:34:56 UTC
     """
 
     __slots__ = ()
