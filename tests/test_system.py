@@ -779,9 +779,6 @@ class TestSystem:
                 response = requests.post(f"{server}/v1/admin/database/save")
                 assert response.status_code == HTTPStatus.OK
 
-            # small delay so the updates interleave with the server's own work
-            time.sleep(0.05)
-
         # ----------------------------------------------------------------------
         # 3. Assertions
         # ----------------------------------------------------------------------
