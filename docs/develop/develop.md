@@ -618,6 +618,13 @@ The report is the same as with the default tracer, but a coverage run takes abou
 time. Set the variable for local coverage runs as well. On Python 3.13 this core does not measure
 branch coverage: with `--cov-branch`, coverage.py falls back to the default tracer.
 
+Run the tests in parallel with `uv run pytest -n auto --dist loadgroup` (pytest-xdist). The tests
+that start a real EOS or EOSdash server listen on fixed ports and must not run next to each
+other. They carry the `eos_server` marker, set automatically for every test that uses the
+`xprocess` fixture, and share one xdist group, which `--dist loadgroup` keeps on one worker.
+Without `--dist loadgroup` these tests collide. Give a test that binds the ports without the
+fixture the marker itself (`@pytest.mark.eos_server`).
+
 ### Follow Coding Standards
 
 Keep your code consistent with existing style and conventions.
