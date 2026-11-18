@@ -634,6 +634,13 @@ CI runs every test exactly once, spread over several jobs:
 - `test`: prints the coverage report of all parts. It is the required check and fails if one of
   these jobs, `docs-test` or `docker-test` failed.
 
+`make test-ci` runs the tests of the jobs `test-server`, `test-shard`, `docs-test` and
+`docker-test` locally, with the markers and options of these jobs and one part after the other:
+the server tests, the other tests with pytest-xdist on all cores (not split into shards), the
+Sphinx build and the Docker checks. It prints the coverage report of the first two parts and stops
+at the first part that fails. The browser tests of the `browser-test` job have their own target,
+`make test-browser`.
+
 The coverage report of the `test` job is combined from the parts. It differs from the report of
 one plain run in a few lines, and not in exactly the same ones in every run: lines that are only
 executed when a test finds state left by an earlier test of the same process. With pytest-xdist
