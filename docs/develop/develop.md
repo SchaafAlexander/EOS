@@ -620,6 +620,10 @@ an index; the generated pages stay the same (see
 only active for the Sphinx version it was verified with. After a Sphinx update, `TestPyXrefIndex`
 in `tests/test_docsphinx.py` fails until the version in the extension is raised.
 
+The documentation test builds with up to four parallel jobs (`sphinx-build -j`), and so do
+`make docs` and `make read-docs`, which run this test. A parallel build can link a cross-reference
+with an ambiguous name to another object of the same name than a build with one process.
+
 CI runs every test exactly once, spread over several jobs:
 
 - `test-shard`: the tests that do not start a server, in four shards of about equal runtime, each

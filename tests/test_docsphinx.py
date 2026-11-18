@@ -25,6 +25,12 @@ DIR_SRC = DIR_PROJECT_ROOT / "src"
 
 HASH_FILE = DIR_BUILD / ".sphinx_hash.json"
 
+# Parallel jobs of the Sphinx build. Sphinx reads the sources and writes the pages in several
+# processes; resolving the cross-references stays in the main process. With the EOS API
+# reference each process needs up to 1.4 GB of memory, so the number is limited. Sphinx builds
+# with one process where it cannot fork (Windows).
+SPHINX_JOBS = min(4, os.cpu_count() or 1)
+
 
 import os
 import subprocess
@@ -109,6 +115,8 @@ class TestSphinxDocumentation:
         "html",
         str(DIR_DOCS),
         str(DIR_BUILD_DOCS),
+        "-j",
+        str(SPHINX_JOBS),
     ]
 
     def _cleanup_autosum_dirs(self):
