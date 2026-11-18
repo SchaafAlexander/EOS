@@ -11,6 +11,11 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      # Line coverage through sys.monitoring instead of the default sys.settrace
+      # tracer: the report stays the same, the tracing overhead mostly goes away.
+      # Branch coverage (--cov-branch) needs Python 3.14 with this core.
+      COVERAGE_CORE: sysmon
 
     steps:
       - name: Checkout code

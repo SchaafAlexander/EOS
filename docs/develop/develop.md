@@ -613,6 +613,11 @@ documentation build and the Docker checks run in their own CI jobs. Run them loc
 `uv run pytest --finalize -m docs` and `uv run pytest --finalize -m docker` (the Docker checks
 need a running Docker engine).
 
+CI measures coverage with the `sys.monitoring` core of coverage.py (`COVERAGE_CORE=sysmon`).
+The report is the same as with the default tracer, but a coverage run takes about a third less
+time. Set the variable for local coverage runs as well. On Python 3.13 this core does not measure
+branch coverage: with `--cov-branch`, coverage.py falls back to the default tracer.
+
 ### Follow Coding Standards
 
 Keep your code consistent with existing style and conventions.
