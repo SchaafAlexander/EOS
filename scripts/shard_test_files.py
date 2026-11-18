@@ -18,8 +18,6 @@ one second again::
     python scripts/shard_test_files.py --update junit-shard-*.xml
 """
 
-from __future__ import annotations
-
 import argparse
 import json
 import re
