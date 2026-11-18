@@ -613,6 +613,13 @@ The CI logs of the `test-shard` and `test-server` jobs list their 25 slowest tes
 jobs. Run them locally with `uv run pytest --finalize -m docs` and
 `uv run pytest --finalize -m docker` (the Docker checks need a running Docker engine).
 
+The Sphinx build resolves Python cross-references through the local extension
+`docs/_ext/pyxrefindex.py`. It answers a search that Sphinx runs over all documented objects from
+an index; the generated pages stay the same (see
+[sphinx-doc/sphinx#11282](https://github.com/sphinx-doc/sphinx/issues/11282)). The extension is
+only active for the Sphinx version it was verified with. After a Sphinx update, `TestPyXrefIndex`
+in `tests/test_docsphinx.py` fails until the version in the extension is raised.
+
 CI runs every test exactly once, spread over several jobs:
 
 - `test-shard`: the tests that do not start a server, in four shards of about equal runtime, each
