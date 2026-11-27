@@ -264,7 +264,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     if not re.fullmatch(r"[a-z0-9_]+", args.name):
         parser.error("--name may contain lowercase letters, digits and '_' only.")
 
-    with tempfile.TemporaryDirectory(prefix="eos-capture-") as scratch:
+    # On Windows, EOS may still hold a cache file of the copy open; a cleanup error must
+    # not lose the capture.
+    with tempfile.TemporaryDirectory(prefix="eos-capture-", ignore_cleanup_errors=True) as scratch:
         eos_dir = Path(scratch) / "eos"
         shutil.copytree(args.eos_dir, eos_dir)
         originals = {eos_dir: args.eos_dir.resolve()}
